@@ -1,0 +1,61 @@
+{
+  "instruments": [
+    {
+      "id": "AAPL",
+      "name": "Apple Inc.",
+      "type": "Stock"
+    },
+    {
+      "id": "GOOGL",
+      "name": "Alphabet Inc.",
+      "type": "Stock"
+    },
+    {
+      "id": "BTC-USD",
+      "name": "Bitcoin USD",
+      "type": "Cryptocurrency"
+    },
+    {
+      "id": "EUR-USD",
+      "name": "Euro to US Dollar",
+      "type": "Currency Pair"
+    }
+  ],
+  "limits": [
+    {
+      "id": "LIMIT001",
+      "counterparty": "Bank A",
+      "totalLimit": 1000000.00,
+      "usedLimit": 250000.00
+    },
+    {
+      "id": "LIMIT002",
+      "counterparty": "Hedge Fund B",
+      "totalLimit": 500000.00,
+      "usedLimit": 100000.00
+    },
+    {
+      "id": "LIMIT003",
+      "counterparty": "Investment Firm C",
+      "totalLimit": 2000000.00,
+      "usedLimit": 1500000.00
+    }
+  ],
+  "approvalRequests": [
+    {
+      "id": "AR001",
+      "instrumentId": "TSLA",
+      "status": "PENDING"
+    },
+    {
+      "id": "AR002",
+      "instrumentId": "ETH-USD",
+      "status": "APPROVED"
+    },
+    {
+      "id": "AR003",
+      "instrumentId": "AMZN",
+      "status": "REJECTED"
+    }
+  ]
+}
