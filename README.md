@@ -14,7 +14,7 @@ e.g. `brew services start redis`
 
 6. `source venv/bin/activate`
 
-7. `mvn mvn exec:exec@run-streamlit`
+7. `mvn exec:exec@run-streamlit`
 
 8. Try UI yourself
 

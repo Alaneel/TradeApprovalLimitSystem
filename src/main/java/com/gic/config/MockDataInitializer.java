@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.Map;
 
 @Configuration
-@Profile("dev")
 public class MockDataInitializer {
 
     @Autowired
