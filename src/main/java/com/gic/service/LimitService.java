@@ -4,6 +4,9 @@ import com.gic.model.Limit;
 import com.gic.repository.LimitRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 public class LimitService {
@@ -11,20 +14,44 @@ public class LimitService {
     @Autowired
     private LimitRepository limitRepository;
 
-    public Double getAvailableLimit(String counterparty) {
-        Limit limit = limitRepository.findByCounterparty(counterparty);
-        return limit != null ? limit.getTotalLimit() - limit.getUsedLimit() : 0.0;
+    public Limit getAvailableLimit(String counterparty, String instrumentGroup) {
+        List<Limit> limits = limitRepository.findByCounterpartyAndInstrumentGroup(counterparty, instrumentGroup);
+        if (limits.isEmpty()) {
+            return null;
+        }
+        // You might want to add some logic here to handle multiple limits if needed
+        return limits.get(0);
+
+        // Option 3: Use this instead if you want to get only the first result
+        // return limitRepository.findFirstByCounterpartyAndInstrumentGroup(counterparty, instrumentGroup);
     }
 
-    public boolean checkLimit(String counterparty, Double amount) {
-        Limit limit = limitRepository.findByCounterparty(counterparty);
-        return limit != null && (limit.getTotalLimit() - limit.getUsedLimit()) >= amount;
+    @Transactional
+    public boolean checkAndReserveLimit(String counterparty, String instrumentGroup, Double amount) {
+        List<Limit> limits = limitRepository.findByCounterpartyAndInstrumentGroup(counterparty, instrumentGroup);
+        if (limits.isEmpty()) {
+            return false;
+        }
+        Limit limit = limits.get(0); // You might want to add some logic here to handle multiple limits if needed
+        if (limit.getAvailableLimit() >= amount) {
+            limit.setAvailableLimit(limit.getAvailableLimit() - amount);
+            limitRepository.save(limit);
+            return true;
+        }
+        return false;
     }
 
-    public void updateLimit(String counterparty, Double amount) {
-        Limit limit = limitRepository.findByCounterparty(counterparty);
-        if (limit != null) {
-            limit.setUsedLimit(limit.getUsedLimit() + amount);
+    @Transactional
+    public void confirmLimitUsage(String counterparty, String instrumentGroup, Double amount) {
+        // The limit has already been updated in checkAndReserveLimit, so we don't need to do anything here
+    }
+
+    @Transactional
+    public void releaseLimitReservation(String counterparty, String instrumentGroup, Double amount) {
+        List<Limit> limits = limitRepository.findByCounterpartyAndInstrumentGroup(counterparty, instrumentGroup);
+        if (!limits.isEmpty()) {
+            Limit limit = limits.get(0); // You might want to add some logic here to handle multiple limits if needed
+            limit.setAvailableLimit(limit.getAvailableLimit() + amount);
             limitRepository.save(limit);
         }
     }

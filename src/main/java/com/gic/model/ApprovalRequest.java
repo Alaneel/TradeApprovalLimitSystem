@@ -9,6 +9,6 @@ import lombok.Data;
 public class ApprovalRequest {
     @Id
     private String id;
-    private String instrumentId;
+    private InstrumentVerificationRequest instrumentVerificationRequest;
     private String status;
 }

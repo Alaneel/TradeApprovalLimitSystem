@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class TradeRequest {
-    private String instrumentId;
+    private InstrumentVerificationRequest instrumentVerificationRequest;
     private String counterparty;
     private Double amount;
     private boolean confirmed;

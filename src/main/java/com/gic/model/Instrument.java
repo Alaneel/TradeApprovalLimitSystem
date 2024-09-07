@@ -9,6 +9,11 @@ import lombok.Data;
 public class Instrument {
     @Id
     private String id;
-    private String name;
-    private String type;
+    private String instrumentGroup;
+    private String instrument;
+    private String department;
+    private String riskCountry;
+    private String exchange;
+    private String tradeCCY;
+    private String settlementCCY;
 }

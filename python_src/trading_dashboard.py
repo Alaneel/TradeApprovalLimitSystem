@@ -8,9 +8,9 @@ import json
 # Set the base URL for your Spring Boot backend
 BASE_URL = "http://localhost:8080/api/trader"
 
-def get_instrument(instrument_id):
+def verify_instrument(instrument_verification_request):
     try:
-        response = requests.get(f"{BASE_URL}/instrument/{instrument_id}")
+        response = requests.post(f"{BASE_URL}/verify-instrument", json=instrument_verification_request)
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
@@ -24,26 +24,19 @@ def get_available_instruments():
     except requests.exceptions.RequestException as e:
         return []
 
-def create_approval_request(instrument_id):
-    data = {"instrumentId": instrument_id, "status": "PENDING"}
+def create_approval_request(instrument_verification_request):
     try:
-        response = requests.post(f"{BASE_URL}/approval-request", json=data)
+        response = requests.post(f"{BASE_URL}/approval-request", json=instrument_verification_request)
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
         return {"error": str(e)}
 
-def get_available_limit(counterparty):
+def get_available_limit(counterparty, instrument_group):
     try:
-        response = requests.get(f"{BASE_URL}/limit/{counterparty}")
+        response = requests.get(f"{BASE_URL}/limit/{counterparty}/{instrument_group}")
         response.raise_for_status()
-        limit_data = response.json()
-        if isinstance(limit_data, (int, float)):
-            return limit_data
-        elif isinstance(limit_data, dict) and 'availableLimit' in limit_data:
-            return limit_data['availableLimit']
-        else:
-            return {"error": "Unexpected response format"}
+        return response.json()
     except requests.exceptions.RequestException as e:
         return {"error": f"Request failed: {str(e)}"}
     except json.JSONDecodeError:
@@ -51,106 +44,100 @@ def get_available_limit(counterparty):
     except Exception as e:
         return {"error": f"Unknown error: {str(e)}"}
 
-def execute_trade(instrument_id, counterparty, amount):
-    data = {
-        "instrumentId": instrument_id,
-        "counterparty": counterparty,
-        "amount": amount,
-        "confirmed": True
-    }
+def execute_trade(trade_request):
     try:
-        response = requests.post(f"{BASE_URL}/trade", json=data)
+        response = requests.post(f"{BASE_URL}/trade", json=trade_request)
         response.raise_for_status()
-
-        # Try to parse as JSON first
-        try:
-            return response.json()
-        except json.JSONDecodeError:
-            # If JSON parsing fails, return the text content
-            return {"message": response.text.strip()}
+        return response.json()
     except requests.exceptions.RequestException as e:
         return {"error": f"Request failed: {str(e)}"}
 
 st.title("Trading System Dashboard")
 
-# Instrument Search
+# Instrument Verification
+st.subheader("Instrument Verification")
 col1, col2 = st.columns(2)
 with col1:
-    st.subheader("Instrument Search")
-    instrument_id = st.text_input("Enter Instrument ID", key="search_instrument_id")
-    if st.button("Search Instrument"):
-        result = get_instrument(instrument_id)
-        if "error" not in result:
-            st.json(result)
-        else:
-            st.warning(f"Error: {result['error']}")
+    instrument_group = st.text_input("Instrument Group")
+    instrument = st.text_input("Instrument")
+    settlement_currency = st.text_input("Settlement Currency")
+    trade_currency = st.text_input("Trade Currency")
+with col2:
+    country = st.text_input("Country")
+    exchange = st.text_input("Exchange")
+    department = st.text_input("Department")
+
+if st.button("Verify Instrument"):
+    instrument_verification_request = {
+        "instrumentGroup": instrument_group,
+        "settlementCurrency": settlement_currency,
+        "tradeCurrency": trade_currency,
+        "country": country,
+        "exchange": exchange,
+        "department": department
+    }
+    result = verify_instrument(instrument_verification_request)
+    if "error" not in result:
+        st.json(result)
+        if not result["valid"]:
             if st.button("Submit Approval Request"):
-                approval_result = create_approval_request(instrument_id)
+                approval_result = create_approval_request(instrument_verification_request)
                 if "error" not in approval_result:
                     st.json(approval_result)
                 else:
                     st.error(f"Error submitting approval request: {approval_result['error']}")
+    else:
+        st.error(f"Error: {result['error']}")
 
 # Available Limit
-with col2:
-    st.subheader("Available Limit")
-    counterparty = st.text_input("Enter Counterparty")
-    if st.button("Get Available Limit"):
-        limit = get_available_limit(counterparty)
-        if isinstance(limit, (int, float)):
-            st.write(f"Available Limit: {limit}")
-        elif isinstance(limit, dict) and "error" in limit:
-            st.error(f"Error fetching limit: {limit['error']}")
-        else:
-            st.error("Unexpected response format for available limit")
+st.subheader("Available Limit")
+limit_counterparty = st.text_input("Enter Counterparty")
+limit_instrument_group = st.text_input("Enter Instrument Group")
+if st.button("Get Available Limit"):
+    limit = get_available_limit(limit_counterparty, limit_instrument_group)
+    if "error" not in limit:
+        st.write(f"Available Limit: {limit['availableLimit']}")
+    else:
+        st.error(f"Error fetching limit: {limit['error']}")
 
 # Trade Execution Section
 st.subheader("Execute Trade")
 
-# Fetch available instruments
-available_instruments = get_available_instruments()
-
-# Create a dropdown for available instruments
-selected_instrument = st.selectbox(
-    "Select Instrument",
-    ["Custom"] + available_instruments,
-    key="instrument_dropdown"
-)
-
-# If "Custom" is selected, show a text input for custom instrument ID
-if selected_instrument == "Custom":
-    trade_instrument_id = st.text_input("Enter Custom Instrument ID", key="custom_instrument_id")
-else:
-    trade_instrument_id = selected_instrument
-
+trade_instrument_group = st.text_input("Instrument Group for Trade")
 trade_counterparty = st.text_input("Counterparty for Trade")
 trade_amount = st.number_input("Trade Amount", min_value=0.0)
 
 if st.button("Execute Trade"):
     with st.spinner("Executing trade..."):
-        instrument_check = get_instrument(trade_instrument_id)
-        if "error" not in instrument_check:
-            trade_result = execute_trade(trade_instrument_id, trade_counterparty, trade_amount)
-            if "error" in trade_result:
-                st.error(f"Trade execution failed: {trade_result['error']}")
-            elif "message" in trade_result:
-                st.warning(f"Trade result: {trade_result['message']}")
-            else:
-                st.success(f"Trade executed successfully: {json.dumps(trade_result, indent=2)}")
+        trade_request = {
+            "instrumentVerificationRequest": {
+                "instrumentGroup": trade_instrument_group,
+                "settlementCurrency": settlement_currency,
+                "tradeCurrency": trade_currency,
+                "country": country,
+                "exchange": exchange,
+                "department": department
+            },
+            "counterparty": trade_counterparty,
+            "amount": trade_amount
+        }
+        trade_result = execute_trade(trade_request)
+        if "error" in trade_result:
+            st.error(f"Trade execution failed: {trade_result['error']}")
         else:
-            st.warning("Instrument not found. Do you want to submit an approval request and proceed?")
-            if st.button("Confirm and Proceed"):
-                approval_result = create_approval_request(trade_instrument_id)
-                if "error" not in approval_result:
-                    st.json(approval_result)
-                    trade_result = execute_trade(trade_instrument_id, trade_counterparty, trade_amount)
-                    if "error" in trade_result:
-                        st.error(f"Trade execution failed: {trade_result['error']}")
-                    elif "message" in trade_result:
-                        st.warning(f"Trade result: {trade_result['message']}")
-                    else:
-                        st.success(f"Trade executed successfully: {json.dumps(trade_result, indent=2)}")
-                else:
-                    st.error(f"Error submitting approval request: {approval_result['error']}")
+            st.success(f"Trade result: {trade_result['status']} - {trade_result['message']}")
 
-# The rest of your Streamlit code (recent trades display, etc.) remains the same
+# Display Trade History
+st.subheader("Trade History")
+if st.button("Fetch Trade History"):
+    try:
+        response = requests.get(f"{BASE_URL}/trades")
+        response.raise_for_status()
+        trades = response.json()
+        if trades:
+            df = pd.DataFrame(trades)
+            st.dataframe(df)
+        else:
+            st.info("No trade history available.")
+    except requests.exceptions.RequestException as e:
+        st.error(f"Error fetching trade history: {str(e)}")

@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 public class TradeHistory {
     @Id
     private String id;
-    private String instrumentId;
+    private InstrumentVerificationRequest instrumentVerificationRequest;
     private String counterparty;
     private Double amount;
     private LocalDateTime timestamp;

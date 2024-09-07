@@ -1,19 +1,12 @@
 package com.gic.controller;
 
-import com.gic.model.Instrument;
-import com.gic.model.ApprovalRequest;
-import com.gic.model.TradeRequest;
-import com.gic.service.InstrumentService;
-import com.gic.service.LimitService;
-import com.gic.service.ApprovalService;
-import com.gic.service.TradeService;
+import com.gic.model.*;
+import com.gic.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/trader")
@@ -31,35 +24,33 @@ public class TraderController {
     @Autowired
     private TradeService tradeService;
 
-    @GetMapping("/instrument/{id}")
-    public ResponseEntity<?> getInstrument(@PathVariable String id) {
-        Optional<Instrument> instrumentOpt = instrumentService.findInstrument(id);
-        if (instrumentOpt.isPresent()) {
-            return ResponseEntity.ok(instrumentOpt.get());
-        } else {
-            return ResponseEntity.ok("Instrument not found. Would you like to submit an approval request?");
-        }
-    }
-
-    @GetMapping("/instruments")
-    public ResponseEntity<List<String>> getAvailableInstruments() {
-        List<String> instrumentIds = instrumentService.getAllInstrumentIds();
-        return ResponseEntity.ok(instrumentIds);
+    @PostMapping("/verify-instrument")
+    public ResponseEntity<?> verifyInstrument(@RequestBody InstrumentVerificationRequest request) {
+        InstrumentVerificationResult result = instrumentService.verifyInstrument(request);
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping("/approval-request")
-    public ResponseEntity<ApprovalRequest> createApprovalRequest(@RequestBody ApprovalRequest request) {
-        return ResponseEntity.ok(approvalService.createApprovalRequest(request));
+    public ResponseEntity<ApprovalRequest> createApprovalRequest(@RequestBody InstrumentVerificationRequest request) {
+        ApprovalRequest approvalRequest = approvalService.createApprovalRequest(request);
+        return ResponseEntity.ok(approvalRequest);
     }
 
-    @GetMapping("/limit/{counterparty}")
-    public ResponseEntity<Double> getAvailableLimit(@PathVariable String counterparty) {
-        return ResponseEntity.ok(limitService.getAvailableLimit(counterparty));
+    @GetMapping("/limit/{counterparty}/{instrumentGroup}")
+    public ResponseEntity<Limit> getAvailableLimit(@PathVariable String counterparty, @PathVariable String instrumentGroup) {
+        Limit limit = limitService.getAvailableLimit(counterparty, instrumentGroup);
+        return ResponseEntity.ok(limit);
     }
 
     @PostMapping("/trade")
-    public ResponseEntity<String> executeTrade(@RequestBody TradeRequest tradeRequest) {
-        String result = tradeService.processTrade(tradeRequest);
+    public ResponseEntity<TradeResult> executeTrade(@RequestBody TradeRequest tradeRequest) {
+        TradeResult result = tradeService.processTrade(tradeRequest);
         return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/trades")
+    public ResponseEntity<List<TradeHistory>> getTradeHistory() {
+        List<TradeHistory> tradeHistory = tradeService.getTradeHistory();
+        return ResponseEntity.ok(tradeHistory);
     }
 }

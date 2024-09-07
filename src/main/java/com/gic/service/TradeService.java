@@ -1,15 +1,13 @@
 package com.gic.service;
 
-import com.gic.model.ApprovalRequest;
-import com.gic.model.Instrument;
-import com.gic.model.TradeRequest;
-import com.gic.model.TradeHistory;
+import com.gic.model.*;
 import com.gic.repository.TradeHistoryRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Optional;
+import java.util.List;
 
 @Service
 public class TradeService {
@@ -18,49 +16,46 @@ public class TradeService {
     private InstrumentService instrumentService;
 
     @Autowired
-    private ApprovalService approvalService;
-
-    @Autowired
     private LimitService limitService;
 
     @Autowired
     private TradeHistoryRepository tradeHistoryRepository;
 
-    public String processTrade(TradeRequest tradeRequest) {
-        Optional<Instrument> instrumentOpt = instrumentService.findInstrument(tradeRequest.getInstrumentId());
+    @Transactional
+    public TradeResult processTrade(TradeRequest tradeRequest) {
+        InstrumentVerificationResult verificationResult = instrumentService.verifyInstrument(tradeRequest.getInstrumentVerificationRequest());
 
-        if (instrumentOpt.isEmpty()) {
-            if (!tradeRequest.isConfirmed()) {
-                return "Instrument not found. Please confirm if you want to proceed with approval.";
-            } else {
-                ApprovalRequest approvalRequest = new ApprovalRequest();
-                approvalRequest.setInstrumentId(tradeRequest.getInstrumentId());
-                approvalRequest.setStatus("PENDING");
-                approvalService.createApprovalRequest(approvalRequest);
-                return "Approval request submitted for the new instrument.";
-            }
+        if (!verificationResult.isValid()) {
+            return new TradeResult("REJECTED", "Invalid instrument combination");
         }
 
-        if (limitService.checkLimit(tradeRequest.getCounterparty(), tradeRequest.getAmount())) {
-            boolean tradeExecuted = executeTradeOnExternalPlatform(tradeRequest);
+        if (!verificationResult.isApprovedForDepartment()) {
+            return new TradeResult("REJECTED", "Instrument not approved for your department");
+        }
 
-            if (tradeExecuted) {
-                limitService.updateLimit(tradeRequest.getCounterparty(), tradeRequest.getAmount());
-                saveTrade(tradeRequest, "EXECUTED");
-                return "Trade executed successfully.";
-            } else {
-                saveTrade(tradeRequest, "FAILED");
-                return "Trade execution failed on the external platform.";
-            }
+        String instrumentGroup = verificationResult.getInstrument().getInstrumentGroup();
+        boolean limitAvailable = limitService.checkAndReserveLimit(tradeRequest.getCounterparty(), instrumentGroup, tradeRequest.getAmount());
+
+        if (!limitAvailable) {
+            return new TradeResult("REJECTED", "Insufficient limit for the counterparty and instrument group");
+        }
+
+        boolean tradeExecuted = executeTradeOnExternalPlatform(tradeRequest);
+
+        if (tradeExecuted) {
+            limitService.confirmLimitUsage(tradeRequest.getCounterparty(), instrumentGroup, tradeRequest.getAmount());
+            saveTrade(tradeRequest, "EXECUTED");
+            return new TradeResult("EXECUTED", "Trade executed successfully");
         } else {
-            saveTrade(tradeRequest, "REJECTED");
-            return "Trade rejected. Insufficient limit for the counterparty.";
+            limitService.releaseLimitReservation(tradeRequest.getCounterparty(), instrumentGroup, tradeRequest.getAmount());
+            saveTrade(tradeRequest, "FAILED");
+            return new TradeResult("FAILED", "Trade execution failed on the external platform");
         }
     }
 
     private void saveTrade(TradeRequest tradeRequest, String status) {
         TradeHistory tradeHistory = new TradeHistory();
-        tradeHistory.setInstrumentId(tradeRequest.getInstrumentId());
+        tradeHistory.setInstrumentVerificationRequest(tradeRequest.getInstrumentVerificationRequest());
         tradeHistory.setCounterparty(tradeRequest.getCounterparty());
         tradeHistory.setAmount(tradeRequest.getAmount());
         tradeHistory.setTimestamp(LocalDateTime.now());
@@ -69,6 +64,16 @@ public class TradeService {
     }
 
     private boolean executeTradeOnExternalPlatform(TradeRequest tradeRequest) {
+        // Simulate external trade execution
+        try {
+            Thread.sleep(500); // Simulate network latency
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
         return Math.random() < 0.9; // 90% success rate for demonstration
+    }
+
+    public List<TradeHistory> getTradeHistory() {
+        return tradeHistoryRepository.findAll();
     }
 }
