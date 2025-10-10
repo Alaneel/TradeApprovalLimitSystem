@@ -1,0 +1,39 @@
+# Version control
+.git
+.gitignore
+.github
+
+# IDE
+.idea
+.vscode
+*.iml
+
+# Build artifacts
+target/
+*.class
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Testing
+.coverage
+htmlcov/
+
+# Documentation
+*.md
+!README.md

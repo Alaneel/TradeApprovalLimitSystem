@@ -1,0 +1,14 @@
+spring:
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/trading_system_dev
+
+logging:
+  level:
+    root: DEBUG
+    com.gic: TRACE
+    org.springframework.web: DEBUG
+    org.springframework.data.mongodb: DEBUG
+
+server:
+  port: 8080

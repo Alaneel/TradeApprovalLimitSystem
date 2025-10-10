@@ -1,0 +1,66 @@
+spring:
+  application:
+    name: trading-system
+  profiles:
+    active: ${SPRING_PROFILE:dev}
+
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/trading_system}
+      auto-index-creation: true
+
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    timeout: 2000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+        max-wait: -1ms
+
+  cache:
+    type: caffeine
+    cache-names: instruments,limits,tradeHistory
+    caffeine:
+      spec: maximumSize=10000,expireAfterWrite=3600s
+
+server:
+  port: ${SERVER_PORT:8080}
+  compression:
+    enabled: true
+  error:
+    include-message: always
+    include-binding-errors: always
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+logging:
+  level:
+    root: INFO
+    com.gic: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# Application specific properties
+app:
+  circuit-breaker:
+    failure-rate-threshold: 50
+    wait-duration-in-open-state: 60000
+    sliding-window-size: 100
+  bloom-filter:
+    expected-insertions: 10000
+    false-positive-probability: 0.01

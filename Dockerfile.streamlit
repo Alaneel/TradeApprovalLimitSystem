@@ -1,0 +1,21 @@
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Copy requirements and install dependencies
+COPY python_src/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY python_src/ .
+
+# Create non-root user
+RUN useradd -m -u 1000 streamlit && chown -R streamlit:streamlit /app
+USER streamlit
+
+EXPOSE 8501
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:8501/_stcore/health || exit 1
+
+CMD ["streamlit", "run", "trading_dashboard.py", "--server.address", "0.0.0.0"]
