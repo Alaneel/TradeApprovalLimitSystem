@@ -1,6 +1,6 @@
 # Project Improvements Summary
 
-This document outlines all the improvements made to transform the Trading System into a quasi-industrial level project.
+This document outlines the improvements made to evolve Atlas Trade Control Room into a production-minded reference project.
 
 ## 🎯 Overview
 
@@ -116,7 +116,7 @@ The project has been significantly enhanced with production-ready features, best
 - CI/CD integration
 
 **Files Added:**
-- `src/test/java/com/gic/TradingSystemApplicationTests.java`
+- `src/test/java/com/gic/AtlasTradeControlApplicationTests.java`
 - `src/test/java/com/gic/controller/TraderControllerTest.java`
 - `src/test/java/com/gic/exception/GlobalExceptionHandlerTest.java`
 

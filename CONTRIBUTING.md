@@ -1,6 +1,6 @@
-# Contributing to Trading System
+# Contributing to Atlas Trade Control Room
 
-Thank you for considering contributing to the Trading System project!
+Thank you for considering contributing to Atlas Trade Control Room!
 
 ## Code of Conduct
 

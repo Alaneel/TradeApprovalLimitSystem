@@ -8,8 +8,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @EnableCaching
 @EnableScheduling
-public class TradingSystemApplication {
+public class AtlasTradeControlApplication {
     public static void main(String[] args) {
-        SpringApplication.run(TradingSystemApplication.class, args);
+		SpringApplication.run(AtlasTradeControlApplication.class, args);
     }
 }

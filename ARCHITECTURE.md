@@ -4,7 +4,7 @@
 
 ### Overview
 
-The Trading System follows a microservice-inspired architecture with clear separation of concerns.
+Atlas Trade Control Room follows a service-oriented architecture with clear separation of concerns.
 
 ### Component Diagram
 

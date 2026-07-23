@@ -30,6 +30,11 @@ public class TraderController {
         return ResponseEntity.ok(result);
     }
 
+    @GetMapping("/instruments")
+    public ResponseEntity<List<String>> getAvailableInstruments() {
+        return ResponseEntity.ok(instrumentService.getAllInstrumentIds());
+    }
+
     @PostMapping("/approval-request")
     public ResponseEntity<ApprovalRequest> createApprovalRequest(@RequestBody InstrumentVerificationRequest request) {
         ApprovalRequest approvalRequest = approvalService.createApprovalRequest(request);

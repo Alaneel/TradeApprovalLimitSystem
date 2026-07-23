@@ -1,12 +1,12 @@
 spring:
   application:
-    name: trading-system
+    name: atlas-trade-control-room
   profiles:
     active: ${SPRING_PROFILE:dev}
 
   data:
     mongodb:
-      uri: ${MONGODB_URI:mongodb://localhost:27017/trading_system}
+      uri: ${MONGODB_URI:mongodb://localhost:27017/atlas_trade_control}
       auto-index-creation: true
 
   redis:

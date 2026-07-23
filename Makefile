@@ -40,8 +40,8 @@ run-frontend: ## Run Streamlit frontend
 
 docker-build: ## Build Docker images
 	@echo "Building Docker images..."
-	docker build -t trading-backend:latest .
-	docker build -f Dockerfile.streamlit -t trading-frontend:latest .
+	docker build -t atlas-trade-api:latest .
+	docker build -f Dockerfile.streamlit -t atlas-control-room:latest .
 
 docker-up: ## Start all services with Docker Compose
 	@echo "Starting services..."
@@ -61,7 +61,7 @@ docker-logs: ## View Docker logs
 docker-clean: ## Remove all containers, volumes, and images
 	@echo "Cleaning Docker resources..."
 	docker-compose down -v
-	docker rmi trading-backend:latest trading-frontend:latest 2>/dev/null || true
+	docker rmi atlas-trade-api:latest atlas-control-room:latest 2>/dev/null || true
 
 lint: ## Run code quality checks
 	@echo "Running checkstyle..."
@@ -91,4 +91,4 @@ format: ## Format code (Java)
 	mvn formatter:format
 
 package: build ## Package application for deployment
-	@echo "Application packaged: target/trading-system-0.0.1-SNAPSHOT.jar"
+	@echo "Application packaged: target/atlas-trade-control-room-1.0.0-SNAPSHOT.jar"

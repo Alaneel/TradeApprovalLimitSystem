@@ -18,23 +18,22 @@ public class OpenApiConfig {
     private String serverPort;
 
     @Bean
-    public OpenAPI tradingSystemOpenAPI() {
+    public OpenAPI atlasOpenAPI() {
         Server devServer = new Server();
         devServer.setUrl("http://localhost:" + serverPort);
         devServer.setDescription("Development server");
 
         Contact contact = new Contact();
-        contact.setName("Trading System Team");
-        contact.setEmail("support@tradingsystem.com");
+        contact.setName("Atlas Maintainers");
 
         License license = new License()
                 .name("MIT License")
                 .url("https://opensource.org/licenses/MIT");
 
         Info info = new Info()
-                .title("Trading System API")
+                .title("Atlas Trade Control API")
                 .version("1.0.0")
-                .description("REST API for Trading Approval Limit System")
+                .description("Pre-trade instrument validation, limit decisions, and approval workflow")
                 .contact(contact)
                 .license(license);
 

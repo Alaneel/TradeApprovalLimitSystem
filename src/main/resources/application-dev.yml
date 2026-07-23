@@ -1,7 +1,7 @@
 spring:
   data:
     mongodb:
-      uri: mongodb://localhost:27017/trading_system_dev
+      uri: mongodb://localhost:27017/atlas_trade_control_dev
 
 logging:
   level:
