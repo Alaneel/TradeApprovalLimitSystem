@@ -3,16 +3,16 @@ version: '3.8'
 services:
   mongodb:
     image: mongo:7.0
-    container_name: trading-mongodb
+    container_name: atlas-mongodb
     restart: unless-stopped
     environment:
-      MONGO_INITDB_DATABASE: trading_system
+      MONGO_INITDB_DATABASE: atlas_trade_control
     ports:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
     networks:
-      - trading-network
+      - atlas-network
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
@@ -21,14 +21,14 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: trading-redis
+    container_name: atlas-redis
     restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
     networks:
-      - trading-network
+      - atlas-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -40,11 +40,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: trading-backend
+    container_name: atlas-api
     restart: unless-stopped
     environment:
       - SPRING_PROFILE=prod
-      - MONGODB_URI=mongodb://mongodb:27017/trading_system
+      - MONGODB_URI=mongodb://mongodb:27017/atlas_trade_control
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - SERVER_PORT=8080
@@ -56,7 +56,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - trading-network
+      - atlas-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
       interval: 30s
@@ -68,7 +68,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.streamlit
-    container_name: trading-frontend
+    container_name: atlas-control-room
     restart: unless-stopped
     environment:
       - BACKEND_API_URL=http://backend:8080
@@ -77,10 +77,10 @@ services:
     depends_on:
       - backend
     networks:
-      - trading-network
+      - atlas-network
 
 networks:
-  trading-network:
+  atlas-network:
     driver: bridge
 
 volumes:

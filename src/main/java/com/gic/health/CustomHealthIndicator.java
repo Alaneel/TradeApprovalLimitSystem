@@ -19,7 +19,7 @@ public class CustomHealthIndicator implements HealthIndicator {
                         .build();
             }
             return Health.up()
-                    .withDetail("status", "Trading System is running")
+                    .withDetail("status", "Atlas Trade Control API is running")
                     .build();
         } catch (Exception e) {
             return Health.down()

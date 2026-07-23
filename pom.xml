@@ -9,11 +9,11 @@
         <version>2.6.3</version>
         <relativePath/>
     </parent>
-    <groupId>com.tradingsystem</groupId>
-    <artifactId>trading-system</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
-    <name>trading-system</name>
-    <description>Integrated Trading System</description>
+    <groupId>io.github.alaneel</groupId>
+    <artifactId>atlas-trade-control-room</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <name>Atlas Trade Control Room</name>
+    <description>Pre-trade risk validation and approval workflow</description>
     <properties>
         <java.version>11</java.version>
     </properties>

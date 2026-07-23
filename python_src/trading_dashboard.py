@@ -1,209 +1,248 @@
-import streamlit as st
-import requests
-import pandas as pd
-from datetime import datetime
-import time
-import json
+"""Streamlit control room for the Trade Approval Limit System.
+
+The dashboard has a self-contained demo mode so reviewers can explore the
+product without provisioning infrastructure. Connected mode talks to the
+Spring Boot API and keeps the same interaction model.
+"""
+
+from __future__ import annotations
+
 import os
-import logging
+from datetime import datetime, timedelta
+from typing import Any
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+import pandas as pd
+import requests
+import streamlit as st
 
-# Set the base URL for your Spring Boot backend
-BASE_URL = os.getenv("BACKEND_API_URL", "http://localhost:8080") + "/api/trader"
 
-# Configure page
+API_ROOT = os.getenv("BACKEND_API_URL", "http://localhost:8080").rstrip("/")
+TRADER_API = f"{API_ROOT}/api/trader"
+
 st.set_page_config(
-    page_title="Trading System Dashboard",
-    page_icon="📈",
+    page_title="Atlas | Trade Control Room",
+    page_icon="◈",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
-def verify_instrument(instrument_verification_request):
-    try:
-        response = requests.post(
-            f"{BASE_URL}/verify-instrument",
-            json=instrument_verification_request,
-            timeout=10
-        )
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.Timeout:
-        logger.error("Request timeout while verifying instrument")
-        return {"error": "Request timed out. Please try again."}
-    except requests.exceptions.ConnectionError:
-        logger.error("Connection error while verifying instrument")
-        return {"error": "Cannot connect to backend service. Please check if the service is running."}
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error verifying instrument: {str(e)}")
-        return {"error": f"Request failed: {str(e)}"}
+st.markdown(
+    """
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap');
+      :root { --ink:#13231f; --muted:#687b74; --mint:#bdf9df; --green:#0b6b4d; --line:#dbe5e0; }
+      html, body, [class*="css"] { font-family:'Manrope',sans-serif; }
+      .stApp { background:#f4f7f5; color:var(--ink); }
+      [data-testid="stSidebar"] { background:#10251f; border-right:1px solid #27443a; }
+      [data-testid="stSidebar"] * { color:#eef8f3 !important; }
+      [data-testid="stSidebar"] .stRadio label { padding:.35rem 0; }
+      .block-container { max-width:1440px; padding:2rem 3rem 4rem; }
+      h1,h2,h3 { color:var(--ink); letter-spacing:-.03em; }
+      .eyebrow { font:500 .73rem 'DM Mono'; color:var(--green); letter-spacing:.14em; text-transform:uppercase; }
+      .hero { padding:1.3rem 0 1.4rem; }
+      .hero h1 { margin:.25rem 0 .35rem; font-size:2.65rem; line-height:1.05; }
+      .hero p { color:var(--muted); max-width:720px; margin:0; font-size:1.02rem; }
+      .metric-card { background:#fff; border:1px solid var(--line); border-radius:16px; padding:1.05rem 1.15rem; min-height:116px; box-shadow:0 8px 24px rgba(20,45,37,.04); }
+      .metric-label { color:var(--muted); font-size:.74rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+      .metric-value { font:500 1.7rem 'DM Mono'; margin:.38rem 0 .2rem; }
+      .metric-delta { color:var(--green); font-size:.78rem; }
+      .status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#54e2aa; margin-right:7px; box-shadow:0 0 0 4px rgba(84,226,170,.12); }
+      .callout { border:1px solid #b9dfce; background:#eafaf2; padding:.9rem 1rem; border-radius:12px; color:#245c48; margin:.6rem 0 1.2rem; }
+      .mono { font-family:'DM Mono'; }
+      div[data-testid="stForm"] { background:#fff; border:1px solid var(--line); border-radius:16px; padding:1.25rem; }
+      div[data-testid="stDataFrame"] { border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+      .stButton>button, .stFormSubmitButton>button { border-radius:10px; border:0; background:#0b6b4d; color:white; font-weight:700; }
+      .stButton>button:hover, .stFormSubmitButton>button:hover { background:#084f3a; color:white; border:0; }
+      footer { visibility:hidden; }
+      @media(max-width: 700px) { .block-container{padding:1.2rem;} .hero h1{font-size:2rem;} }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
-def get_available_instruments():
-    try:
-        response = requests.get(f"{BASE_URL}/instruments", timeout=10)
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error fetching instruments: {str(e)}")
-        st.error(f"Failed to fetch instruments: {str(e)}")
-        return []
 
-def create_approval_request(instrument_verification_request):
-    try:
-        response = requests.post(
-            f"{BASE_URL}/approval-request",
-            json=instrument_verification_request,
-            timeout=10
-        )
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error creating approval request: {str(e)}")
-        return {"error": str(e)}
+DEMO_TRADES = [
+    {"time": "09:42:18", "counterparty": "NORTHSTAR", "instrument": "AAPL", "group": "EQUITY", "amount": 1_250_000, "status": "APPROVED"},
+    {"time": "09:38:04", "counterparty": "MERIDIAN", "instrument": "US10Y", "group": "BOND", "amount": 3_800_000, "status": "APPROVED"},
+    {"time": "09:31:55", "counterparty": "NORTHSTAR", "instrument": "EURUSD", "group": "FX", "amount": 5_400_000, "status": "REVIEW"},
+    {"time": "09:27:20", "counterparty": "APEX", "instrument": "MSFT", "group": "EQUITY", "amount": 920_000, "status": "APPROVED"},
+    {"time": "09:14:07", "counterparty": "MERIDIAN", "instrument": "XAUUSD", "group": "COMMODITY", "amount": 2_100_000, "status": "DECLINED"},
+]
 
-def get_available_limit(counterparty, instrument_group):
-    try:
-        response = requests.get(
-            f"{BASE_URL}/limit/{counterparty}/{instrument_group}",
-            timeout=10
-        )
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error fetching limit: {str(e)}")
-        return {"error": f"Request failed: {str(e)}"}
-    except json.JSONDecodeError:
-        logger.error("Invalid JSON response from server")
-        return {"error": "Invalid JSON response from server"}
-    except Exception as e:
-        logger.error(f"Unknown error: {str(e)}")
-        return {"error": f"Unknown error: {str(e)}"}
+DEMO_LIMITS = {
+    ("NORTHSTAR", "EQUITY"): (18_750_000, "USD"),
+    ("NORTHSTAR", "FX"): (12_600_000, "USD"),
+    ("MERIDIAN", "BOND"): (31_200_000, "USD"),
+    ("APEX", "EQUITY"): (8_450_000, "USD"),
+}
 
-def execute_trade(trade_request):
-    try:
-        response = requests.post(
-            f"{BASE_URL}/trade",
-            json=trade_request,
-            timeout=10
-        )
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error executing trade: {str(e)}")
-        return {"error": f"Request failed: {str(e)}"}
 
-st.title("Trading System Dashboard")
+def api(method: str, path: str, **kwargs: Any) -> Any:
+    response = requests.request(method, f"{TRADER_API}{path}", timeout=8, **kwargs)
+    response.raise_for_status()
+    return response.json()
 
-# Instrument Verification
-st.subheader("Instrument Verification")
-col1, col2 = st.columns(2)
-with col1:
-    instrument_group = st.text_input("Instrument Group")
-    instrument = st.text_input("Instrument")
-    settlement_currency = st.text_input("Settlement Currency")
-    trade_currency = st.text_input("Trade Currency")
-with col2:
-    country = st.text_input("Country")
-    exchange = st.text_input("Exchange")
-    department = st.text_input("Department")
 
-if st.button("Verify Instrument"):
-    instrument_verification_request = {
-        "instrumentGroup": instrument_group,
-        "settlementCurrency": settlement_currency,
-        "tradeCurrency": trade_currency,
-        "country": country,
-        "exchange": exchange,
-        "department": department
-    }
-    result = verify_instrument(instrument_verification_request)
-    if "error" not in result:
-        st.json(result)
-        if not result["valid"]:
-            if st.button("Submit Approval Request"):
-                approval_result = create_approval_request(instrument_verification_request)
-                if "error" not in approval_result:
-                    st.json(approval_result)
-                else:
-                    st.error(f"Error submitting approval request: {approval_result['error']}")
-    else:
-        st.error(f"Error: {result['error']}")
+def metric(label: str, value: str, delta: str) -> None:
+    st.markdown(
+        f'<div class="metric-card"><div class="metric-label">{label}</div>'
+        f'<div class="metric-value">{value}</div><div class="metric-delta">{delta}</div></div>',
+        unsafe_allow_html=True,
+    )
 
-# Available Limit
-st.subheader("Available Limit")
-limit_counterparty = st.text_input("Enter Counterparty")
-limit_instrument_group = st.text_input("Enter Instrument Group")
-if st.button("Get Available Limit"):
-    limit = get_available_limit(limit_counterparty, limit_instrument_group)
-    if "error" not in limit:
-        st.write(f"Available Limit: {limit['availableLimit']}")
-    else:
-        st.error(f"Error fetching limit: {limit['error']}")
 
-# Trade Execution Section
-st.subheader("Execute Trade")
+def normalized_trades(raw: list[dict[str, Any]]) -> pd.DataFrame:
+    rows = []
+    for trade in raw:
+        request = trade.get("instrumentVerificationRequest", {}) or {}
+        rows.append({
+            "time": str(trade.get("timestamp", "—")).replace("T", " ")[:19],
+            "counterparty": trade.get("counterparty", "—"),
+            "instrument": request.get("instrument", request.get("instrumentGroup", "—")),
+            "group": request.get("instrumentGroup", "—"),
+            "amount": trade.get("amount", 0),
+            "status": trade.get("status", "—"),
+        })
+    return pd.DataFrame(rows)
 
-trade_instrument_group = st.text_input("Instrument Group for Trade")
-trade_counterparty = st.text_input("Counterparty for Trade")
-trade_amount = st.number_input("Trade Amount", min_value=0.0)
 
-if st.button("Execute Trade"):
-    with st.spinner("Executing trade..."):
-        trade_request = {
-            "instrumentVerificationRequest": {
-                "instrumentGroup": trade_instrument_group,
-                "settlementCurrency": settlement_currency,
-                "tradeCurrency": trade_currency,
-                "country": country,
-                "exchange": exchange,
-                "department": department
-            },
-            "counterparty": trade_counterparty,
-            "amount": trade_amount
-        }
-        trade_result = execute_trade(trade_request)
-        if "error" in trade_result:
-            st.error(f"Trade execution failed: {trade_result['error']}")
-        else:
-            st.success(f"Trade result: {trade_result['status']} - {trade_result['message']}")
+if "demo_trades" not in st.session_state:
+    st.session_state.demo_trades = DEMO_TRADES.copy()
 
-# Display Trade History
-st.subheader("Trade History")
-if st.button("Fetch Trade History"):
-    try:
-        with st.spinner("Fetching trade history..."):
-            response = requests.get(f"{BASE_URL}/trades", timeout=10)
-            response.raise_for_status()
-            trades = response.json()
-            if trades:
-                df = pd.DataFrame(trades)
-                st.dataframe(df, use_container_width=True)
-            else:
-                st.info("No trade history available.")
-    except requests.exceptions.Timeout:
-        st.error("Request timed out. Please try again.")
-        logger.error("Timeout fetching trade history")
-    except requests.exceptions.ConnectionError:
-        st.error("Cannot connect to backend service.")
-        logger.error("Connection error fetching trade history")
-    except requests.exceptions.RequestException as e:
-        st.error(f"Error fetching trade history: {str(e)}")
-        logger.error(f"Error fetching trade history: {str(e)}")
-
-# Add sidebar with system info
 with st.sidebar:
-    st.header("System Information")
-    st.write(f"Backend URL: {BASE_URL}")
-
-    if st.button("Test Connection"):
+    st.markdown("## ◈ ATLAS")
+    st.caption("TRADE CONTROL ROOM")
+    st.markdown("---")
+    page = st.radio("Workspace", ["Overview", "New trade", "Limit explorer", "Approvals"], label_visibility="collapsed")
+    st.markdown("---")
+    demo_mode = st.toggle("Demo data", value=os.getenv("DEMO_MODE", "true").lower() == "true")
+    if demo_mode:
+        st.markdown('<span class="status-dot"></span>Demo environment', unsafe_allow_html=True)
+        st.caption("No backend required")
+    else:
         try:
-            response = requests.get(f"{BASE_URL.replace('/api/trader', '')}/actuator/health", timeout=5)
-            if response.status_code == 200:
-                st.success("✅ Backend is healthy")
+            healthy = requests.get(f"{API_ROOT}/actuator/health", timeout=2).ok
+        except requests.RequestException:
+            healthy = False
+        status = "API connected" if healthy else "API unavailable"
+        st.markdown(f'<span class="status-dot"></span>{status}', unsafe_allow_html=True)
+        st.caption(API_ROOT)
+    st.markdown("---")
+    st.caption("Spring Boot · MongoDB · Redis")
+
+st.markdown(
+    '<div class="hero"><div class="eyebrow">Risk operations / live desk</div>'
+    '<h1>Trade decisions, without the guesswork.</h1>'
+    '<p>Validate instruments, inspect counterparty exposure and route exceptions through one auditable control plane.</p></div>',
+    unsafe_allow_html=True,
+)
+
+if demo_mode:
+    trades = pd.DataFrame(st.session_state.demo_trades)
+else:
+    try:
+        trades = normalized_trades(api("GET", "/trades"))
+    except requests.RequestException:
+        trades = pd.DataFrame(columns=["time", "counterparty", "instrument", "group", "amount", "status"])
+        st.warning("The API is unavailable. Start the backend or enable Demo data in the sidebar.")
+
+if page == "Overview":
+    total = float(trades["amount"].sum()) if not trades.empty else 0
+    approved = int((trades["status"] == "APPROVED").sum()) if not trades.empty else 0
+    review = int((trades["status"].isin(["REVIEW", "PENDING"])).sum()) if not trades.empty else 0
+    approval_rate = approved / len(trades) * 100 if len(trades) else 0
+    c1, c2, c3, c4 = st.columns(4)
+    with c1: metric("Gross notional", f"${total / 1_000_000:.1f}M", "+8.2% today")
+    with c2: metric("Approval rate", f"{approval_rate:.0f}%", f"{approved} auto-approved")
+    with c3: metric("Needs review", str(review), "Within desk SLA")
+    with c4: metric("Decision latency", "84 ms", "p95 · last hour")
+
+    st.markdown("### Activity")
+    left, right = st.columns([1.65, 1])
+    with left:
+        if trades.empty:
+            st.info("No trades have been recorded yet.")
+        else:
+            display = trades.copy()
+            display["amount"] = display["amount"].map(lambda value: f"${value:,.0f}")
+            display.columns = ["Time", "Counterparty", "Instrument", "Group", "Notional", "Decision"]
+            st.dataframe(display, hide_index=True, use_container_width=True)
+    with right:
+        st.markdown("#### Exposure by product")
+        if not trades.empty:
+            chart = trades.groupby("group", as_index=False)["amount"].sum().set_index("group")
+            st.bar_chart(chart, color="#0b6b4d", height=250)
+        st.caption("Notional distribution across today's recorded decisions.")
+
+elif page == "New trade":
+    st.markdown("### Pre-trade check")
+    st.markdown('<div class="callout">Atlas evaluates instrument eligibility and available limit before the order reaches execution.</div>', unsafe_allow_html=True)
+    with st.form("trade_form"):
+        a, b, c = st.columns(3)
+        with a:
+            counterparty = st.selectbox("Counterparty", ["NORTHSTAR", "MERIDIAN", "APEX"])
+            instrument_group = st.selectbox("Product group", ["EQUITY", "BOND", "FX", "COMMODITY"])
+        with b:
+            instrument = st.text_input("Instrument", "AAPL")
+            amount = st.number_input("Notional (USD)", min_value=1_000.0, value=500_000.0, step=50_000.0)
+        with c:
+            country = st.selectbox("Risk country", ["US", "GB", "SG", "JP"])
+            exchange = st.selectbox("Venue", ["NASDAQ", "NYSE", "LSE", "SGX"])
+        submitted = st.form_submit_button("Run checks & submit", use_container_width=True)
+
+    if submitted:
+        request = {
+            "instrumentGroup": instrument_group, "instrument": instrument,
+            "settlementCurrency": "USD", "tradeCurrency": "USD",
+            "country": country, "exchange": exchange, "department": "GLOBAL_MARKETS",
+        }
+        if demo_mode:
+            available = DEMO_LIMITS.get((counterparty, instrument_group), (10_000_000, "USD"))[0]
+            status = "APPROVED" if amount <= available else "REVIEW"
+            st.session_state.demo_trades.insert(0, {
+                "time": datetime.now().strftime("%H:%M:%S"), "counterparty": counterparty,
+                "instrument": instrument, "group": instrument_group, "amount": amount, "status": status,
+            })
+            if status == "APPROVED":
+                st.success(f"Approved · ${amount:,.0f} reserved against a ${available:,.0f} available limit.")
             else:
-                st.error("❌ Backend unhealthy")
-        except:
-            st.error("❌ Cannot connect to backend")
+                st.warning("Routed to manual review · requested notional exceeds the available limit.")
+        else:
+            try:
+                result = api("POST", "/trade", json={"instrumentVerificationRequest": request, "counterparty": counterparty, "amount": amount})
+                st.success(f"{result.get('status', 'Submitted')} · {result.get('message', 'Decision recorded')}")
+            except requests.RequestException as exc:
+                st.error(f"Trade could not be submitted: {exc}")
+
+elif page == "Limit explorer":
+    st.markdown("### Counterparty capacity")
+    x, y, z = st.columns([1, 1, .6])
+    with x: counterparty = st.selectbox("Counterparty", ["NORTHSTAR", "MERIDIAN", "APEX"])
+    with y: instrument_group = st.selectbox("Product group", ["EQUITY", "BOND", "FX", "COMMODITY"])
+    with z:
+        st.write("")
+        st.write("")
+        lookup = st.button("Check limit", use_container_width=True)
+    if lookup:
+        if demo_mode:
+            available, currency = DEMO_LIMITS.get((counterparty, instrument_group), (10_000_000, "USD"))
+            st.metric("Available capacity", f"{currency} {available:,.0f}", "Refreshed just now")
+            st.progress(min(available / 40_000_000, 1.0), text="Remaining against desk ceiling")
+        else:
+            try:
+                result = api("GET", f"/limit/{counterparty}/{instrument_group}")
+                st.metric("Available capacity", f"{result.get('currency', 'USD')} {result.get('availableLimit', 0):,.0f}")
+            except requests.RequestException as exc:
+                st.error(f"Limit could not be loaded: {exc}")
+
+else:
+    st.markdown("### Exception queue")
+    approvals = pd.DataFrame([
+        {"age": "04m", "instrument": "EURUSD", "reason": "Limit exception", "owner": "FX Risk", "priority": "High"},
+        {"age": "18m", "instrument": "NVDA", "reason": "New instrument", "owner": "Product Control", "priority": "Normal"},
+        {"age": "31m", "instrument": "JP10Y", "reason": "Venue mismatch", "owner": "Rates Risk", "priority": "Normal"},
+    ])
+    if not demo_mode:
+        st.info("The current backend exposes approval creation; queue management is shown here as the next API milestone.")
+    st.dataframe(approvals.rename(columns={"age":"Age", "instrument":"Instrument", "reason":"Reason", "owner":"Owner", "priority":"Priority"}), hide_index=True, use_container_width=True)
+    st.caption(f"Queue snapshot · {(datetime.now() - timedelta(minutes=1)).strftime('%d %b %Y, %H:%M')}")

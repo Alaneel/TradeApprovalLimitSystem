@@ -1,7 +1,10 @@
 spring:
+  mongodb:
+    embedded:
+      version: 4.0.12
   data:
     mongodb:
-      uri: mongodb://localhost:27017/trading_system_test
+      uri: mongodb://localhost:27017/atlas_trade_control_test
 
   redis:
     host: localhost
