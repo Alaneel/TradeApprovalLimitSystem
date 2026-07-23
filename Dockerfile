@@ -1,5 +1,5 @@
 # Multi-stage build for Java backend
-FROM maven:3.8.4-openjdk-11-slim AS build
+FROM maven:3.9.9-eclipse-temurin-11 AS build
 
 WORKDIR /app
 
@@ -12,9 +12,14 @@ COPY src ./src
 RUN mvn clean package -DskipTests
 
 # Runtime stage
-FROM openjdk:11-jre-slim
+FROM eclipse-temurin:11-jre-jammy
 
 WORKDIR /app
+
+# Install the health-check client before dropping privileges.
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y curl \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
 RUN groupadd -r spring && useradd -r -g spring spring
